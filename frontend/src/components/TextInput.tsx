@@ -23,16 +23,16 @@ const TextInput: React.FC<TextInputProps> = ({ value, onChange, maxLength = 5000
 
   return (
     <div className="input-group">
-      <label htmlFor="source-text">Source Content</label>
+      <label htmlFor="source-text">源内容</label>
       <textarea
         id="source-text"
         value={value}
         onChange={handleChange}
-        placeholder="Enter or paste your text data here... (Support for paragraphs and lists)"
-        aria-label="Source text input"
+        placeholder="在此输入或粘贴文本... (支持段落和列表)"
+        aria-label="源内容输入"
       />
       <div className="char-count">
-        {charCount} / {maxLength} characters
+        {charCount} / {maxLength} 字符
       </div>
     </div>
   );

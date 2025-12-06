@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { logger } from '../utils/logger';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = '/api';
 
 export interface Flashcard {
   question: string;
@@ -14,7 +15,6 @@ export interface GenerateRequest {
   difficulty: string;
   card_type: string;
   total_cards: number;
-  simulate: boolean;
 }
 
 export interface GenerateResponse {
@@ -22,11 +22,13 @@ export interface GenerateResponse {
 }
 
 export const generateCards = async (req: GenerateRequest): Promise<Flashcard[]> => {
+  logger.info('Calling generateCards API', req);
   try {
     const response = await axios.post<GenerateResponse>(`${API_BASE_URL}/generate`, req);
+    logger.info('API response received', { status: response.status, cardsCount: response.data.cards.length });
     return response.data.cards;
   } catch (error) {
-    console.error('Error generating cards:', error);
+    logger.error('Error generating cards:', error);
     throw error;
   }
 };

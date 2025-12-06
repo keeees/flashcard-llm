@@ -19,7 +19,7 @@ const FlashcardGenerator: React.FC = () => {
 
   const handleGenerate = async () => {
     if (!text.trim()) {
-      setError('Please enter some text content.');
+      setError('请输入文本内容。');
       return;
     }
     
@@ -31,12 +31,11 @@ const FlashcardGenerator: React.FC = () => {
         text,
         difficulty: config.difficulty,
         card_type: config.cardType,
-        total_cards: config.totalCards,
-        simulate: true // Default to simulate for now, user can change later if we add a toggle
+        total_cards: config.totalCards
       });
       setCards(generatedCards);
     } catch (err) {
-      setError('Failed to generate cards. Please check your connection and try again.');
+      setError('生成卡片失败，请检查网络连接并重试。');
     } finally {
       setLoading(false);
     }
@@ -46,7 +45,7 @@ const FlashcardGenerator: React.FC = () => {
     if (cards.length === 0) return;
 
     // Generate CSV content
-    const headers = ['Question', 'Answer', 'Tags', 'Type'];
+    const headers = ['问题', '答案', '标签', '类型'];
     const rows = cards.map(c => [
       `"${c.question.replace(/"/g, '""')}"`,
       `"${c.answer.replace(/"/g, '""')}"`,
@@ -79,7 +78,7 @@ const FlashcardGenerator: React.FC = () => {
 
   return (
     <div className="container">
-      <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: '#007bff' }}>Flashcard Generator</h1>
+      <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: '#007bff' }}>AI 闪卡生成器</h1>
       
       <div className="card">
         <TextInput value={text} onChange={setText} />
@@ -101,16 +100,16 @@ const FlashcardGenerator: React.FC = () => {
           style={{ fontSize: '1.2rem', padding: '0.75rem 2rem' }}
         >
           {loading && <span className="loading-spinner"></span>}
-          {loading ? 'Generating...' : 'Generate Flashcards'}
+          {loading ? '生成中...' : '生成闪卡'}
         </button>
       </div>
 
       {cards.length > 0 && (
         <div className="card" style={{ marginTop: '2rem' }}>
           <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Preview ({cards.length})</span>
+            <span>预览 ({cards.length})</span>
             <button className="btn btn-primary" onClick={handleDownload}>
-              Download CSV
+              下载 CSV
             </button>
           </div>
           
@@ -118,10 +117,10 @@ const FlashcardGenerator: React.FC = () => {
             <table className="preview-table">
               <thead>
                 <tr>
-                  <th>Question</th>
-                  <th>Answer</th>
-                  <th>Type</th>
-                  <th>Tags</th>
+                  <th>问题</th>
+                  <th>答案</th>
+                  <th>类型</th>
+                  <th>标签</th>
                 </tr>
               </thead>
               <tbody>

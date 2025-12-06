@@ -13,17 +13,17 @@ interface ConfigPanelProps {
   onReset: () => void;
 }
 
-const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced', 'Mixed'];
-const CARD_TYPES = ['Standard', 'Multiple Choice', 'True/False', 'Mixed'];
+const DIFFICULTIES = [
+  { value: 'Beginner', label: '初级' },
+  { value: 'Intermediate', label: '中级' },
+  { value: 'Advanced', label: '高级' },
+  { value: 'Mixed', label: '混合' }
+];
 
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, onChange, onReset }) => {
   
   const handleDifficultyChange = (diff: string) => {
     onChange({ ...config, difficulty: diff });
-  };
-
-  const handleTypeChange = (type: string) => {
-    onChange({ ...config, cardType: type });
   };
 
   const handleTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,41 +35,26 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, onChange, onReset }) 
 
   return (
     <div className="card config-panel">
-      <div className="section-title">Configuration</div>
+      <div className="section-title">配置选项</div>
       
       <div className="config-grid">
         <div className="input-group">
-          <label>Difficulty Level</label>
-          <div className="btn-group" role="group" aria-label="Difficulty selection">
+          <label>难度等级</label>
+          <div className="btn-group" role="group" aria-label="难度选择">
             {DIFFICULTIES.map((diff) => (
               <button
-                key={diff}
-                className={classNames('btn btn-outline', { active: config.difficulty === diff })}
-                onClick={() => handleDifficultyChange(diff)}
+                key={diff.value}
+                className={classNames('btn btn-outline', { active: config.difficulty === diff.value })}
+                onClick={() => handleDifficultyChange(diff.value)}
               >
-                {diff}
+                {diff.label}
               </button>
             ))}
           </div>
         </div>
 
         <div className="input-group">
-          <label>Card Type</label>
-          <div className="btn-group" role="group" aria-label="Card type selection">
-            {CARD_TYPES.map((type) => (
-              <button
-                key={type}
-                className={classNames('btn btn-outline', { active: config.cardType === type })}
-                onClick={() => handleTypeChange(type)}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="input-group">
-          <label htmlFor="total-cards">Total Cards (1-100)</label>
+          <label htmlFor="total-cards">生成数量 (1-100)</label>
           <input
             type="number"
             id="total-cards"
@@ -85,7 +70,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, onChange, onReset }) 
 
       <div style={{ marginTop: '1rem', textAlign: 'right' }}>
         <button className="btn btn-secondary" onClick={onReset}>
-          Reset Filters
+          重置配置
         </button>
       </div>
     </div>

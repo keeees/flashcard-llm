@@ -11,6 +11,7 @@ from pypdf import PdfReader
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from .logger import logger
 
 
 def read_text_file(path: Path) -> str:
@@ -48,41 +49,6 @@ def extract_json_block(s: str) -> Dict:
     return {"cards": []}
 
 
-def simulate_cards(chunk: str, per_chunk: int, chunk_index: int) -> List[Dict[str, str]]:
-    # Split by periods or newlines to find candidates
-    # Using a simple heuristic to find "sentences"
-    raw_sentences = chunk.replace("\n", " ").replace("。", ".").split(".")
-    candidates = [s.strip() for s in raw_sentences if len(s.strip()) > 5]
-    
-    cards = []
-    for i in range(per_chunk):
-        if not candidates:
-            cards.append({
-                "question": f"Simulation Q{i+1} (Chunk {chunk_index})",
-                "answer": "No valid content found in chunk.",
-                "tags": ["simulation"],
-                "type": "standard"
-            })
-            continue
-            
-        # Cycle through candidates to ensure we get cards even if per_chunk > len(candidates)
-        # Using chunk_index offset to vary the starting point slightly if needed
-        idx = (i) % len(candidates)
-        sentence = candidates[idx]
-        
-        # Create a dummy question
-        question = f"关于“{sentence[:10]}...”的要点是什么？"
-        answer = sentence
-        cards.append({
-            "question": question, 
-            "answer": answer,
-            "tags": ["simulation", "demo"],
-            "type": "standard"
-        })
-        
-    return cards
-
-
 def generate_cards_with_llm(model: ChatOpenAI, chunk: str, per_chunk: int, language: str, 
                             difficulty: str = "Mixed", card_type: str = "Standard") -> List[Dict[str, str]]:
     system_prompt = (
@@ -116,6 +82,8 @@ def generate_cards_with_llm(model: ChatOpenAI, chunk: str, per_chunk: int, langu
     }
     
     chain = prompt | model
+    
+    logger.info(f"Invoking LLM for chunk of size {len(chunk)}...")
     resp = chain.invoke({
         "chunk": chunk, 
         "n": per_chunk, 
@@ -124,6 +92,7 @@ def generate_cards_with_llm(model: ChatOpenAI, chunk: str, per_chunk: int, langu
         "language": language,
         "example": json.dumps(example, ensure_ascii=False)
     })
+    logger.info("LLM response received.")
     
     data = extract_json_block(resp.content)
     cards = data.get("cards", [])
@@ -176,7 +145,6 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--difficulty", default="Mixed", help="Difficulty level (Beginner, Intermediate, Advanced, Mixed)")
     parser.add_argument("--card_type", default="Standard", help="Type of flashcards (Standard, True/False, Mixed)")
-    parser.add_argument("--simulate", action="store_true")
     args = parser.parse_args()
 
     load_dotenv()
@@ -202,12 +170,10 @@ def main():
         base_per_chunk = args.per_chunk
         remainder = 0
 
-    if not args.simulate and not api_key:
+    if not api_key:
         raise RuntimeError("Missing DEEPSEEK_API_KEY or OPENAI_API_KEY")
 
-    model = None
-    if not args.simulate:
-        model = ChatOpenAI(model=args.model, api_key=api_key, base_url=base_url, temperature=args.temperature)
+    model = ChatOpenAI(model=args.model, api_key=api_key, base_url=base_url, temperature=args.temperature)
 
     all_cards: List[Dict[str, str]] = []
     for i, ch in enumerate(tqdm(chunks, desc="Generating", unit="chunk")):
@@ -215,17 +181,14 @@ def main():
         if current_per_chunk <= 0:
             continue
 
-        if args.simulate:
-            cards = simulate_cards(ch, current_per_chunk, i)
-        else:
-            cards = generate_cards_with_llm(
-                model, 
-                ch, 
-                current_per_chunk, 
-                args.language, 
-                difficulty=args.difficulty, 
-                card_type=args.card_type
-            )
+        cards = generate_cards_with_llm(
+            model, 
+            ch, 
+            current_per_chunk, 
+            args.language, 
+            difficulty=args.difficulty, 
+            card_type=args.card_type
+        )
         all_cards.extend(cards)
 
     write_csv(all_cards, Path(args.output))

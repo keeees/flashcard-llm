@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import classNames from 'classnames';
+import React, { useState, useEffect } from 'react';
 
 interface TextInputProps {
   value: string;

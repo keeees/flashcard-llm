@@ -48,40 +48,106 @@ def extract_json_block(s: str) -> Dict:
     return {"cards": []}
 
 
-def simulate_cards(chunk: str, per_chunk: int) -> List[Dict[str, str]]:
-    sentences = [x.strip() for x in chunk.replace("\n", " ").split("。") if x.strip()]
+def simulate_cards(chunk: str, per_chunk: int, chunk_index: int) -> List[Dict[str, str]]:
+    # Split by periods or newlines to find candidates
+    # Using a simple heuristic to find "sentences"
+    raw_sentences = chunk.replace("\n", " ").replace("。", ".").split(".")
+    candidates = [s.strip() for s in raw_sentences if len(s.strip()) > 5]
+    
     cards = []
-    for i, s in enumerate(sentences[:per_chunk]):
-        q = f"这段内容的要点是什么？({i+1})"
-        a = s
-        cards.append({"question": q, "answer": a})
+    for i in range(per_chunk):
+        if not candidates:
+            cards.append({
+                "question": f"Simulation Q{i+1} (Chunk {chunk_index})",
+                "answer": "No valid content found in chunk.",
+                "tags": ["simulation"],
+                "type": "standard"
+            })
+            continue
+            
+        # Cycle through candidates to ensure we get cards even if per_chunk > len(candidates)
+        # Using chunk_index offset to vary the starting point slightly if needed
+        idx = (i) % len(candidates)
+        sentence = candidates[idx]
+        
+        # Create a dummy question
+        question = f"关于“{sentence[:10]}...”的要点是什么？"
+        answer = sentence
+        cards.append({
+            "question": question, 
+            "answer": answer,
+            "tags": ["simulation", "demo"],
+            "type": "standard"
+        })
+        
     return cards
 
 
-def generate_cards_with_llm(model: ChatOpenAI, chunk: str, per_chunk: int, language: str) -> List[Dict[str, str]]:
+def generate_cards_with_llm(model: ChatOpenAI, chunk: str, per_chunk: int, language: str, 
+                            difficulty: str = "Mixed", card_type: str = "Standard") -> List[Dict[str, str]]:
+    system_prompt = (
+        "You are an expert educational content creator specializing in high-quality flashcards (Quizlet style).\n"
+        "Your goal is to create clear, concise, and meaningful Q&A pairs from the input text.\n\n"
+        "Guidelines:\n"
+        "1. **Front Side (Question)**: Should be a specific concept, term, or question that tests understanding.\n"
+        "2. **Back Side (Answer)**: Should be a precise, accurate, and digestible explanation or definition.\n"
+        "3. **Difficulty**: {difficulty}\n"
+        "4. **Type**: {card_type} (e.g., Standard Q&A,True/False, Fill-in-the-blank)\n"
+        "5. **Output Format**: JSON object with a 'cards' key containing an array of objects. "
+        "Each object must have 'question', 'answer', 'tags' (list of strings), and 'type' (string).\n"
+        "6. **Language**: {language}\n\n"
+        "Avoid trivial questions. Focus on key concepts, dates, figures, and cause-effect relationships."
+    )
+
     prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            "你是学习辅助助手。根据输入内容生成高质量的'问答式'学习卡片。"
-            "每张卡片包含'question'和'answer'字段。输出JSON对象，键名为'cards'，值为数组。"
-            "要求: 问题简洁明确，答案准确凝练；避免无关信息；语言使用为" + language,
-        ),
-        (
-            "human",
-            "内容:\n{chunk}\n\n生成{n}张卡片，JSON格式示例: {example}",
-        ),
+        ("system", system_prompt),
+        ("human", "Content:\n{chunk}\n\nGenerate {n} flashcards based on the guidelines above.\nExample JSON: {example}"),
     ])
-    example = {"cards": [{"question": "问题", "answer": "答案"}]}
+    
+    example = {
+        "cards": [
+            {
+                "question": "What is the primary function of mitochondria?", 
+                "answer": "To generate energy for the cell (ATP) through cellular respiration.",
+                "tags": ["Biology", "Cell Structure"],
+                "type": "Standard"
+            }
+        ]
+    }
+    
     chain = prompt | model
-    resp = chain.invoke({"chunk": chunk, "n": per_chunk, "example": json.dumps(example, ensure_ascii=False)})
+    resp = chain.invoke({
+        "chunk": chunk, 
+        "n": per_chunk, 
+        "difficulty": difficulty,
+        "card_type": card_type,
+        "language": language,
+        "example": json.dumps(example, ensure_ascii=False)
+    })
+    
     data = extract_json_block(resp.content)
     cards = data.get("cards", [])
     result = []
     for c in cards[:per_chunk]:
         q = str(c.get("question", "")).strip()
         a = str(c.get("answer", "")).strip()
+        t = c.get("tags", [])
+        ct = str(c.get("type", "Standard")).strip()
+        
+        # Format tags as a string for CSV if needed, or keep list if handled later.
+        # For now, let's just append tags to answer or keep them separate if we update CSV.
+        # The user asked for "standardized flashcard structure", usually Front/Back.
+        # We will append tags to the answer in brackets for visibility in standard 2-col CSV,
+        # or just return them. Let's stick to 2-col CSV for compatibility but maybe append tags?
+        # Actually, let's store them in the dict and update write_csv to handle them.
+        
         if q and a:
-            result.append({"question": q, "answer": a})
+            result.append({
+                "question": q, 
+                "answer": a,
+                "tags": t,
+                "type": ct
+            })
     return result
 
 
@@ -89,8 +155,12 @@ def write_csv(cards: List[Dict[str, str]], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
+        # Add header
+        writer.writerow(["Question", "Answer", "Tags", "Type"])
         for c in cards:
-            writer.writerow([c["question"], c["answer"]])
+            tags_str = ", ".join(c.get("tags", [])) if isinstance(c.get("tags"), list) else str(c.get("tags", ""))
+            writer.writerow([c["question"], c["answer"], tags_str, c.get("type", "")])
+
 
 
 def main():
@@ -104,6 +174,8 @@ def main():
     parser.add_argument("--total_cards", type=int, default=None, help="Total number of cards to generate across all chunks")
     parser.add_argument("--language", default="中文")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--difficulty", default="Mixed", help="Difficulty level (Beginner, Intermediate, Advanced, Mixed)")
+    parser.add_argument("--card_type", default="Standard", help="Type of flashcards (Standard, True/False, Mixed)")
     parser.add_argument("--simulate", action="store_true")
     args = parser.parse_args()
 
@@ -144,9 +216,16 @@ def main():
             continue
 
         if args.simulate:
-            cards = simulate_cards(ch, current_per_chunk)
+            cards = simulate_cards(ch, current_per_chunk, i)
         else:
-            cards = generate_cards_with_llm(model, ch, current_per_chunk, args.language)
+            cards = generate_cards_with_llm(
+                model, 
+                ch, 
+                current_per_chunk, 
+                args.language, 
+                difficulty=args.difficulty, 
+                card_type=args.card_type
+            )
         all_cards.extend(cards)
 
     write_csv(all_cards, Path(args.output))

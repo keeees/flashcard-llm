@@ -20,7 +20,8 @@ Creates a CSV of flashcards from a PDF or text file using DeepSeek via LangChain
   - `--model deepseek-chat` or `deepseek-reasoner`
   - `--language 中文` or `English`
   - `--chunk_size 2000 --chunk_overlap 200`
-  - `--per_chunk 3`
+  - `--per_chunk 3` (cards per chunk, default)
+  - `--total_cards 10` (optional: overrides per_chunk to generate specific total count across all chunks)
   - `--temperature 0.2`
   - `--simulate` to run without LLM for a dry run
 

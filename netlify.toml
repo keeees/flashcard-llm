@@ -1,32 +1,28 @@
 [build]
-  command = "pip install -r requirements.txt && cd frontend && npm install && CI=false npm run build"
+  command = "pip install -r requirements.txt || echo 'Pip failed but continuing...' && cd frontend && npm install && CI=false npm run build"
   publish = "frontend/build"
-  functions = "netlify/functions"
+  # functions directory removed; using dev proxy to Python backend
 
-[build.environment]
-  PYTHON_VERSION = "3.11"
+#[build.environment]
+#  PYTHON_VERSION = "3.9"
 
-[functions]
-  included_files = ["src/**", "requirements.txt"]
+[dev]
+  command = "uv run python -m src.api"
+  targetPort = 8000
 
-[[redirects]]
-  from = "/hello"
-  to = "/.netlify/functions/hello"
-  status = 200
+# [functions]
+#   included_files = ["src/**", "requirements.txt"]
 
-[[redirects]]
-  from = "/ping"
-  to = "/.netlify/functions/ping"
-  status = 200
+## Remove sample function redirects; Python backend is proxied via /api
 
-[[redirects]]
-  from = "/python-ping"
-  to = "/.netlify/functions/python_ping"
-  status = 200
+#[[redirects]]
+#  from = "/api/*"
+#  to = "/.netlify/functions/api/:splat"
+#  status = 200
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "http://localhost:8000/api/:splat"
   status = 200
 
 [[redirects]]

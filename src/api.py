@@ -54,11 +54,9 @@ class GenerateResponse(BaseModel):
     cards: List[Flashcard]
 
 @app.get("/api/health")
-@app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "1.0.0"}
 
-@app.post("/generate", response_model=GenerateResponse)
 @app.post("/api/generate", response_model=GenerateResponse)
 async def generate_flashcards(req: GenerateRequest):
     logger.info(f"Received generation request. Text length: {len(req.text)}, Total cards: {req.total_cards}")
@@ -175,4 +173,4 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=3001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

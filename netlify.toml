@@ -1,9 +1,18 @@
 [build]
-  command = "mkdir -p netlify/functions && cd frontend && npm install && CI=false npm run build && cd .. && cp -r src netlify/functions/"
+  command = "cd frontend && npm install && CI=false npm run build"
   publish = "frontend/build"
+
+[build.environment]
+  PYTHON_VERSION = "3.11"
 
 [functions]
   directory = "netlify/functions"
+  included_files = ["src/**"]
+
+[[redirects]]
+  from = "/hello"
+  to = "/.netlify/functions/hello"
+  status = 200
 
 [[redirects]]
   from = "/api/*"

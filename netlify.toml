@@ -1,7 +1,7 @@
 [build]
   command = "pip install -r requirements.txt && cd frontend && npm install && CI=false npm run build"
   publish = "frontend/build"
-  functions = "functions"
+  functions = "netlify/functions"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
@@ -16,6 +16,11 @@
 
 [[redirects]]
   from = "/ping"
+  to = "/.netlify/functions/ping"
+  status = 200
+
+[[redirects]]
+  from = "/python-ping"
   to = "/.netlify/functions/python_ping"
   status = 200
 

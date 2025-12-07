@@ -8,7 +8,7 @@ sys.path.append(current_dir)
 
 # Add the project root to sys.path for local development
 # This allows importing 'src' when running from project root or function dir
-project_root = os.path.abspath(os.path.join(current_dir, "../"))
+project_root = os.path.abspath(os.path.join(current_dir, "../../"))
 sys.path.append(project_root)
 
 try:

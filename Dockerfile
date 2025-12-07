@@ -26,7 +26,8 @@ WORKDIR /app
 COPY requirements.txt ./
 
 # Install Python dependencies
-RUN python -m pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
 COPY src/ ./src/

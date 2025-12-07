@@ -1,21 +1,8 @@
-# Node
-node_modules/
-frontend/node_modules/
-frontend/build/
-.env
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.venv/
-.pytest_cache/
-
-# Git
-.git/
-.gitignore
-
-# IDE
-.vscode/
-.idea/
+node_modules
+.git
+.DS_Store
+.trae
+netlify
+**/.env
+frontend/node_modules
+frontend/build

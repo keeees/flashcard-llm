@@ -15,18 +15,18 @@ RUN npm run build
 # Stage 2: Build Backend and Final Image
 FROM python:3.12-slim
 
-# Install uv for fast python package management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# Install system build dependencies (some wheels may need compilation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy python dependency definition
-COPY pyproject.toml uv.lock ./
+# Copy python dependency definitions
+COPY requirements.txt ./
 
-# Install python dependencies using uv
-# --system installs into system python, avoiding venv complexity in docker
-# --deploy ensures lock file is respected
-RUN uv pip install --system --require-hashes -r pyproject.toml
+# Install Python dependencies
+RUN python -m pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
 COPY src/ ./src/
@@ -43,5 +43,4 @@ ENV HOST=0.0.0.0
 EXPOSE $PORT
 
 # Command to run the application
-# Use sh to expand environment variables
 CMD sh -c "uvicorn src.api:app --host $HOST --port $PORT"

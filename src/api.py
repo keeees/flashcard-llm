@@ -132,46 +132,55 @@ async def generate_flashcards(req: GenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Serve Frontend (SPA support)
-frontend_build_path = Path(__file__).parent.parent / "frontend" / "build"
+frontend_build_path = Path(__file__).resolve().parent.parent / "frontend" / "build"
+static_assets_path = frontend_build_path / "static"
 
-if frontend_build_path.exists():
-    # Mount static assets (JS/CSS)
-    static_assets_path = frontend_build_path / "static"
-    if static_assets_path.exists():
-        app.mount("/static", StaticFiles(directory=str(static_assets_path)), name="static_assets")
-
-    # Serve root index.html
-    @app.get("/")
-    async def serve_root():
-        index_path = frontend_build_path / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-        raise HTTPException(status_code=404, detail="Index not found")
-
-    # Catch-all for other files (manifest.json, etc.) or SPA routes
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        # 1. Check if file exists in build directory (e.g. manifest.json, favicon.ico)
-        possible_file = frontend_build_path / full_path
+@app.on_event("startup")
+async def log_frontend_path():
+    logger.info(f"Frontend build path: {frontend_build_path}")
+    if frontend_build_path.exists():
+        logger.info("Frontend directory exists.")
         try:
-            possible_file = possible_file.resolve()
-            if str(possible_file).startswith(str(frontend_build_path.resolve())) and possible_file.is_file():
-                return FileResponse(possible_file)
-        except Exception:
-            pass
+            contents = [p.name for p in frontend_build_path.iterdir()]
+            logger.info(f"Contents: {contents}")
+        except Exception as e:
+            logger.error(f"Error listing contents: {e}")
+    else:
+        logger.error("Frontend directory does NOT exist.")
 
-        # 2. If path starts with api/, return 404 (don't serve index.html for API errors)
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API endpoint not found")
+if static_assets_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_assets_path)), name="static_assets")
 
-        # 3. Fallback to index.html for SPA routing
-        index_path = frontend_build_path / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-        
-        raise HTTPException(status_code=404, detail="Frontend not found")
-else:
-    logger.warning("Frontend build directory not found. Static files will not be served.")
+@app.get("/")
+async def serve_root():
+    index_path = frontend_build_path / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"message": "Frontend not found", "path": str(frontend_build_path), "exists": frontend_build_path.exists()}
+
+# Catch-all for other files (manifest.json, etc.) or SPA routes
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    # 1. Check if file exists in build directory (e.g. manifest.json, favicon.ico)
+    possible_file = frontend_build_path / full_path
+    try:
+        possible_file = possible_file.resolve()
+        # Prevent directory traversal
+        if str(possible_file).startswith(str(frontend_build_path)) and possible_file.is_file():
+            return FileResponse(possible_file)
+    except Exception:
+        pass
+
+    # 2. If path starts with api/, return 404 (don't serve index.html for API errors)
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    # 3. Fallback to index.html for SPA routing
+    index_path = frontend_build_path / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    
+    return {"message": "Frontend not found", "path": str(frontend_build_path)}
 
 if __name__ == "__main__":
     import uvicorn
